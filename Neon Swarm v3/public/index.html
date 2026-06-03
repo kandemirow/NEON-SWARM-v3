@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+<title>Neon Swarm Online Multiplayer</title>
+<style>
+:root{--bg:#060711;--panel:rgba(15,18,38,.78);--line:rgba(124,92,255,.35);--text:#eef0ff;--muted:#9aa2d6;--cyan:#36e8ff;--pink:#ff3df2;--red:#ff355d;--green:#52ff9a;--yellow:#ffe45c}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:radial-gradient(circle at 50% 35%,#171b3c 0%,var(--bg) 58%,#02030a 100%);font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;color:var(--text);touch-action:none}
+canvas{display:block;width:100vw;height:100vh;background:radial-gradient(circle at 50% 50%,rgba(87,54,255,.18),transparent 42%),linear-gradient(120deg,rgba(54,232,255,.05),rgba(255,61,242,.04))}
+#hud{position:fixed;inset:0;pointer-events:none;z-index:5}
+.topbar{position:absolute;top:14px;left:14px;right:14px;display:grid;grid-template-columns:1fr auto;gap:10px;align-items:start}
+.stats{display:flex;flex-wrap:wrap;gap:8px}
+.chip{background:var(--panel);border:1px solid var(--line);box-shadow:0 0 24px rgba(74,66,255,.14),inset 0 0 18px rgba(255,255,255,.03);border-radius:14px;padding:8px 11px;backdrop-filter:blur(10px);font-weight:700;font-size:13px;color:var(--text);text-shadow:0 0 10px rgba(54,232,255,.35)}
+.bars{min-width:260px;display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:10px;backdrop-filter:blur(10px)}
+.barLabel{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-bottom:4px;font-weight:700;letter-spacing:.04em}
+.bar{height:10px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;box-shadow:inset 0 0 12px rgba(0,0,0,.3)}
+.fill{height:100%;width:50%;border-radius:999px;transition:width .15s linear}
+#hpFill{background:linear-gradient(90deg,var(--red),#ff8ca2)}#xpFill{background:linear-gradient(90deg,var(--cyan),var(--pink))}
+#message{position:absolute;top:88px;left:50%;transform:translateX(-50%);text-align:center;font-weight:900;font-size:22px;color:white;text-shadow:0 0 20px var(--cyan),0 0 45px var(--pink);opacity:0;transition:opacity .2s,transform .2s;white-space:nowrap}
+#message.show{opacity:1;transform:translateX(-50%) scale(1.04)}
+#minimapWrap{position:absolute;top:116px;right:14px;width:154px;height:154px;padding:8px;border-radius:20px;background:rgba(10,13,31,.72);border:1px solid rgba(54,232,255,.30);box-shadow:0 0 28px rgba(54,232,255,.10),inset 0 0 18px rgba(255,255,255,.035);backdrop-filter:blur(10px)}
+#minimap{display:block;width:100%;height:100%;border-radius:14px;background:rgba(4,6,16,.72);border:1px solid rgba(124,92,255,.30)}
+.minimapTitle{position:absolute;left:13px;top:-19px;font-size:10px;font-weight:900;letter-spacing:.12em;color:#aeb6ff;text-shadow:0 0 10px rgba(54,232,255,.5)}
+#buildBar{position:absolute;left:14px;bottom:14px;max-width:min(680px,calc(100vw - 190px));display:flex;flex-wrap:wrap;gap:7px;pointer-events:none}
+.buildItem{background:rgba(10,13,31,.68);border:1px solid rgba(54,232,255,.22);border-radius:13px;padding:6px 8px;font-size:11px;font-weight:900;color:#dfe4ff;box-shadow:0 0 18px rgba(54,232,255,.08)}
+.buildItem.evolved{border-color:rgba(255,228,92,.65);color:#fff2a8;text-shadow:0 0 12px rgba(255,228,92,.65)}
+#leaderboard{position:absolute;right:14px;top:288px;width:190px;background:rgba(10,13,31,.68);border:1px solid rgba(54,232,255,.22);border-radius:18px;padding:10px;backdrop-filter:blur(10px)}
+#leaderboard h3{margin:0 0 8px;font-size:12px;letter-spacing:.1em;color:#aeb6ff}
+#leaderboard div{font-size:12px;display:flex;justify-content:space-between;gap:8px;margin:5px 0;color:#dfe4ff}
+.overlay{position:fixed;inset:0;z-index:20;display:flex;align-items:center;justify-content:center;padding:22px;background:radial-gradient(circle at 50% 45%,rgba(53,42,130,.42),rgba(3,4,12,.93) 60%);backdrop-filter:blur(8px)}
+.card{width:min(680px,96vw);background:linear-gradient(180deg,rgba(18,22,51,.94),rgba(7,9,24,.94));border:1px solid rgba(95,111,255,.45);border-radius:28px;padding:28px;box-shadow:0 0 45px rgba(60,232,255,.13),0 0 90px rgba(255,61,242,.10);text-align:center}
+h1{margin:0 0 8px;font-size:clamp(34px,7vw,62px);line-height:.92;letter-spacing:-.06em;text-transform:uppercase;text-shadow:0 0 22px rgba(54,232,255,.65),0 0 55px rgba(255,61,242,.45)}
+h2{margin:0 0 16px;font-size:26px;text-shadow:0 0 16px rgba(54,232,255,.45)}
+p{color:#cbd0ff;line-height:1.55;font-size:15px;margin:10px auto;max-width:570px}
+.form{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:18px auto;max-width:520px}
+input{width:100%;background:rgba(255,255,255,.07);border:1px solid rgba(54,232,255,.25);border-radius:14px;padding:13px 14px;color:white;font-weight:800;outline:none}
+button{pointer-events:auto;border:0;color:white;background:linear-gradient(90deg,#2ee7ff,#a340ff,#ff36e9);box-shadow:0 0 25px rgba(54,232,255,.25),0 10px 28px rgba(0,0,0,.28);border-radius:999px;padding:14px 24px;font-size:15px;font-weight:900;letter-spacing:.04em;cursor:pointer;text-transform:uppercase;transition:transform .12s ease,filter .12s ease}
+button:hover{transform:translateY(-1px) scale(1.02);filter:brightness(1.1)}button:active{transform:translateY(1px) scale(.98)}
+.choices{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}
+.upgrade{pointer-events:auto;cursor:pointer;border:1px solid rgba(54,232,255,.35);border-radius:20px;padding:16px;min-height:180px;background:linear-gradient(180deg,rgba(41,48,105,.86),rgba(14,17,42,.92));box-shadow:inset 0 0 30px rgba(255,255,255,.03),0 0 28px rgba(54,232,255,.08);transition:transform .15s,border-color .15s,box-shadow .15s}
+.upgrade:hover{transform:translateY(-5px);border-color:rgba(255,61,242,.75);box-shadow:0 0 34px rgba(255,61,242,.18)}
+.upgrade .icon{font-size:32px;margin-bottom:8px}.upgrade .name{font-weight:950;font-size:16px;margin-bottom:8px}.upgrade .desc{font-size:13px;color:#bfc5ff;line-height:1.4}
+#joystick{position:fixed;left:22px;bottom:22px;width:126px;height:126px;border-radius:50%;border:1px solid rgba(54,232,255,.32);background:rgba(15,20,45,.42);box-shadow:0 0 25px rgba(54,232,255,.10),inset 0 0 22px rgba(255,255,255,.03);z-index:12;pointer-events:auto;display:none}
+#stick{position:absolute;left:50%;top:50%;width:52px;height:52px;transform:translate(-50%,-50%);border-radius:50%;background:linear-gradient(135deg,var(--cyan),var(--pink));box-shadow:0 0 22px rgba(54,232,255,.45)}
+#reviveBtn{position:fixed;right:16px;bottom:18px;z-index:12;pointer-events:auto}
+.hidden{display:none!important}
+@media (max-width:720px){.topbar{grid-template-columns:1fr;top:10px;left:10px;right:10px}.bars{min-width:0;width:100%}.chip{font-size:12px;padding:7px 9px}#joystick{display:block}.choices{grid-template-columns:1fr}.upgrade{min-height:122px}.form{grid-template-columns:1fr}.card{padding:22px}#message{top:140px;font-size:18px}#minimapWrap{top:178px;right:10px;width:112px;height:112px;border-radius:16px;padding:6px}.minimapTitle{display:none}#leaderboard{display:none}#buildBar{left:10px;bottom:158px;max-width:calc(100vw - 132px);gap:5px}.buildItem{font-size:10px;padding:5px 6px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div id="hud">
+  <div class="topbar">
+    <div class="stats">
+      <div class="chip">Room: <span id="roomText">-</span></div>
+      <div class="chip">Score: <span id="scoreText">0</span></div>
+      <div class="chip">Level: <span id="levelText">1</span></div>
+      <div class="chip">Kills: <span id="killsText">0</span></div>
+      <div class="chip">Time: <span id="timeText">00:00</span></div>
+      <div class="chip">Boss: <span id="bossText">02:30</span></div>
+    </div>
+    <div class="bars">
+      <div><div class="barLabel"><span>HP</span><span id="hpText">100 / 100</span></div><div class="bar"><div class="fill" id="hpFill"></div></div></div>
+      <div><div class="barLabel"><span>XP</span><span id="xpText">0 / 8</span></div><div class="bar"><div class="fill" id="xpFill"></div></div></div>
+    </div>
+  </div>
+  <div id="message"></div>
+  <div id="buildBar"></div>
+  <div id="minimapWrap"><div class="minimapTitle">MINIMAP</div><canvas id="minimap" width="138" height="138"></canvas></div>
+  <div id="leaderboard"><h3>LEADERBOARD</h3><div id="leaderRows"></div></div>
+</div>
+
+<div id="startOverlay" class="overlay">
+  <div class="card">
+    <h1>Neon Swarm Online</h1>
+    <p>Online multiplayer survival prototype. Aynı oda kodunu yazan oyuncular aynı haritada oynar. WASD / yön tuşları veya mobil joystick ile hareket et. Saldırı otomatik.</p>
+    <div class="form">
+      <input id="nameInput" placeholder="Player name" maxlength="16" />
+      <input id="roomInput" placeholder="Room code, e.g. PUBLIC" maxlength="16" />
+    </div>
+    <button id="joinBtn">Join Online Run</button>
+    <p id="statusText">Server bağlantısı için bu dosyayı Node.js server üzerinden çalıştır.</p>
+  </div>
+</div>
+
+<div id="choiceOverlay" class="overlay hidden">
+  <div class="card">
+    <h2 id="choiceTitle">Choose an Upgrade</h2>
+    <p id="choiceDesc">Bir güç seç. Online oyunda seçim sadece senin karakterine uygulanır.</p>
+    <div class="choices" id="upgradeChoices"></div>
+  </div>
+</div>
+
+<div id="joystick"><div id="stick"></div></div>
+<button id="reviveBtn" class="hidden">Revive -100 Score</button>
+
+<script>
+(() => {
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const minimap = document.getElementById("minimap");
+const mapCtx = minimap.getContext("2d");
+const TAU = Math.PI * 2;
+const clamp = (v,a,b)=>Math.max(a,Math.min(b,v));
+const dist = (a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+const formatTime = s => `${Math.floor(s/60).toString().padStart(2,"0")}:${Math.floor(s%60).toString().padStart(2,"0")}`;
+
+const ui = {
+  start:document.getElementById("startOverlay"),
+  join:document.getElementById("joinBtn"),
+  status:document.getElementById("statusText"),
+  name:document.getElementById("nameInput"),
+  room:document.getElementById("roomInput"),
+  roomText:document.getElementById("roomText"),
+  score:document.getElementById("scoreText"),
+  level:document.getElementById("levelText"),
+  kills:document.getElementById("killsText"),
+  time:document.getElementById("timeText"),
+  boss:document.getElementById("bossText"),
+  hpText:document.getElementById("hpText"),
+  xpText:document.getElementById("xpText"),
+  hpFill:document.getElementById("hpFill"),
+  xpFill:document.getElementById("xpFill"),
+  message:document.getElementById("message"),
+  choice:document.getElementById("choiceOverlay"),
+  choiceTitle:document.getElementById("choiceTitle"),
+  choiceDesc:document.getElementById("choiceDesc"),
+  choices:document.getElementById("upgradeChoices"),
+  buildBar:document.getElementById("buildBar"),
+  leaderRows:document.getElementById("leaderRows"),
+  revive:document.getElementById("reviveBtn"),
+  joystick:document.getElementById("joystick"),
+  stick:document.getElementById("stick")
+};
+
+let W=1,H=1,DPR=1;
+function resize(){
+  DPR=Math.max(1,Math.min(2,devicePixelRatio||1));
+  W=innerWidth;H=innerHeight;
+  canvas.width=Math.floor(W*DPR);canvas.height=Math.floor(H*DPR);
+  canvas.style.width=W+"px";canvas.style.height=H+"px";
+  ctx.setTransform(DPR,0,0,DPR,0,0);
+}
+addEventListener("resize",resize);resize();
+
+let socket=null,myId=null,roomCode="-";
+let world={w:3000,h:3000};
+let state={players:[],enemies:[],bullets:[],enemyBullets:[],gems:[],anvils:[],leaderboard:[],time:0,bossTimer:150};
+let camera={x:0,y:0};
+let lastSnap=null;
+let input={x:0,y:0,joyActive:false,pointerId:null};
+let keys={};
+
+addEventListener("keydown",e=>keys[e.key.toLowerCase()]=true);
+addEventListener("keyup",e=>keys[e.key.toLowerCase()]=false);
+
+function computeInput(){
+  let x=0,y=0;
+  if(keys.w||keys.arrowup)y-=1;if(keys.s||keys.arrowdown)y+=1;if(keys.a||keys.arrowleft)x-=1;if(keys.d||keys.arrowright)x+=1;
+  if(input.joyActive){x+=input.x;y+=input.y}
+  const l=Math.hypot(x,y);
+  return l>0?{x:x/l,y:y/l}:{x:0,y:0};
+}
+
+function sendInput(){
+  if(!socket||socket.readyState!==WebSocket.OPEN)return;
+  const m=computeInput();
+  socket.send(JSON.stringify({type:"input",x:m.x,y:m.y}));
+}
+setInterval(sendInput,1000/30);
+
+function setStick(clientX,clientY){
+  const r=ui.joystick.getBoundingClientRect();
+  const cx=r.left+r.width/2,cy=r.top+r.height/2,max=r.width*.34;
+  let dx=clientX-cx,dy=clientY-cy;
+  const len=Math.hypot(dx,dy);
+  if(len>max){dx=dx/len*max;dy=dy/len*max}
+  input.x=dx/max;input.y=dy/max;
+  ui.stick.style.transform=`translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+}
+ui.joystick.addEventListener("pointerdown",e=>{input.joyActive=true;input.pointerId=e.pointerId;ui.joystick.setPointerCapture(e.pointerId);setStick(e.clientX,e.clientY)});
+ui.joystick.addEventListener("pointermove",e=>{if(input.joyActive&&e.pointerId===input.pointerId)setStick(e.clientX,e.clientY)});
+function resetJoy(){input.joyActive=false;input.pointerId=null;input.x=input.y=0;ui.stick.style.transform="translate(-50%,-50%)"}
+ui.joystick.addEventListener("pointerup",resetJoy);ui.joystick.addEventListener("pointercancel",resetJoy);
+
+function showMessage(text){
+  ui.message.textContent=text;
+  ui.message.classList.add("show");
+  clearTimeout(showMessage.t);
+  showMessage.t=setTimeout(()=>ui.message.classList.remove("show"),1200);
+}
+
+function join(){
+  const proto=location.protocol==="https:"?"wss":"ws";
+  socket=new WebSocket(`${proto}://${location.host}`);
+  ui.status.textContent="Connecting...";
+  socket.onopen=()=>{
+    roomCode=(ui.room.value||"PUBLIC").trim().toUpperCase()||"PUBLIC";
+    socket.send(JSON.stringify({type:"join",name:ui.name.value||"Player",room:roomCode}));
+  };
+  socket.onmessage=e=>{
+    const msg=JSON.parse(e.data);
+    if(msg.type==="init"){
+      myId=msg.id;world=msg.world;roomCode=msg.room;
+      ui.roomText.textContent=roomCode;
+      ui.start.classList.add("hidden");
+      showMessage("CONNECTED");
+    }
+    if(msg.type==="state"){
+      state=msg;
+      world=msg.world||world;
+      updateUI();
+    }
+    if(msg.type==="choices") openChoices(msg.choices,msg.anvil);
+    if(msg.type==="event"){
+      if(msg.event==="boss") showMessage("BOSS ARRIVED");
+      if(msg.event==="anvil") showMessage("BOSS ANVIL DROPPED");
+      if(msg.event==="death") showMessage(`${msg.name} died`);
+      if(msg.event==="join") showMessage(`${msg.name} joined`);
+    }
+  };
+  socket.onclose=()=>{ui.status.textContent="Disconnected. Refresh or restart server.";showMessage("DISCONNECTED")};
+}
+ui.join.onclick=join;
+
+ui.revive.onclick=()=>{
+  if(socket&&socket.readyState===WebSocket.OPEN)socket.send(JSON.stringify({type:"revive"}));
+};
+
+function openChoices(choices,anvil){
+  ui.choice.classList.remove("hidden");
+  ui.choiceTitle.textContent=anvil?"Boss Anvil":"Choose an Upgrade";
+  ui.choiceDesc.textContent=anvil?"Boss örsü: evolve veya güçlü forge seç.":"Bir güç seç. Bu seçim sadece senin karakterine uygulanır.";
+  ui.choices.innerHTML="";
+  for(const c of choices){
+    const d=document.createElement("div");
+    d.className="upgrade";
+    const badge=c.kind==="evolve"?"FINAL FORM":c.kind==="forge"?"BOSS FORGE":(c.type||"UPGRADE").toUpperCase();
+    d.innerHTML=`<div style="color:${c.kind==="evolve"?"#ffe45c":"#9aa2d6"};font-size:11px;font-weight:950;letter-spacing:.12em;margin-bottom:6px;">${badge}</div><div class="icon">${c.icon||"✨"}</div><div class="name">${c.name}</div><div class="desc">${describeChoice(c)}</div>`;
+    d.onclick=()=>{
+      socket.send(JSON.stringify({type:"choose",choice:c}));
+      ui.choice.classList.add("hidden");
+    };
+    ui.choices.appendChild(d);
+  }
+}
+
+function describeChoice(c){
+  if(c.kind==="evolve")return "Weapon + passive birleşimiyle son form açılır.";
+  if(c.kind==="forge")return "Boss özel ödülü. Build'ini ciddi güçlendirir.";
+  if(c.type==="weapon")return "Silah seviyesini artırır veya yeni silah açar.";
+  if(c.type==="passive")return "Pasif stat güçlendirmesi.";
+  return "Upgrade.";
+}
+
+function me(){return state.players.find(p=>p.id===myId)}
+function updateUI(){
+  const p=me();
+  if(!p)return;
+  camera.x=clamp(p.x-W/2,0,Math.max(0,world.w-W));
+  camera.y=clamp(p.y-H/2,0,Math.max(0,world.h-H));
+  ui.score.textContent=p.score||0;
+  ui.level.textContent=p.level||1;
+  ui.kills.textContent=p.kills||0;
+  ui.time.textContent=formatTime(state.time||0);
+  ui.boss.textContent=formatTime(Math.max(0,state.bossTimer||0));
+  ui.hpText.textContent=`${Math.ceil(p.hp)} / ${p.maxHp}`;
+  ui.xpText.textContent=`${Math.floor(p.xp)} / ${p.xpNeed}`;
+  ui.hpFill.style.width=`${clamp(p.hp/p.maxHp*100,0,100)}%`;
+  ui.xpFill.style.width=`${clamp(p.xp/p.xpNeed*100,0,100)}%`;
+  ui.revive.classList.toggle("hidden",p.alive);
+  updateBuildBar(p);
+  ui.leaderRows.innerHTML=(state.leaderboard||[]).map((r,i)=>`<div><span>${i+1}. ${r.name}${r.alive?"":" ☠"}</span><b>${r.score}</b></div>`).join("");
+}
+
+const names={plasma:"🔫 Plasma",orbit:"🔥 Orbit",lightning:"🔗 Lightning",aura:"🟣 Aura",pulse:"💫 Pulse",speed:"🌀 Speed",magnet:"🧲 Magnet",tome:"📘 Tome",heart:"❤️ Heart",focus:"🎯 Crit",area:"📡 Area"};
+const evolvedNames={deathRay:"☄️ Death Ray",solarRing:"☀️ Solar Ring",stormCrown:"👑 Storm Crown",bloodField:"🩸 Blood Field",singularity:"🕳️ Singularity"};
+function updateBuildBar(p){
+  const items=[];
+  for(const [k,v] of Object.entries(p.weapons||{}))if(v>0)items.push(`<div class="buildItem">${names[k]||k} ${v}</div>`);
+  for(const [k,v] of Object.entries(p.passives||{}))if(v>0)items.push(`<div class="buildItem">${names[k]||k} ${v}</div>`);
+  for(const k of Object.keys(p.evolved||{}))items.push(`<div class="buildItem evolved">${evolvedNames[k]||k}</div>`);
+  ui.buildBar.innerHTML=items.join("");
+}
+
+function glowCircle(x,y,r,color,alpha=1){
+  ctx.save();ctx.globalAlpha=alpha;ctx.shadowColor=color;ctx.shadowBlur=18;ctx.fillStyle=color;ctx.beginPath();ctx.arc(x,y,r,0,TAU);ctx.fill();ctx.restore();
+}
+
+function drawGrid(){
+  const grid=80;
+  ctx.save();
+  ctx.globalAlpha=.22;ctx.strokeStyle="rgba(99,118,255,.18)";ctx.lineWidth=1;
+  const startX=Math.floor(camera.x/grid)*grid,endX=camera.x+W+grid,startY=Math.floor(camera.y/grid)*grid,endY=camera.y+H+grid;
+  for(let x=startX;x<endX;x+=grid){ctx.beginPath();ctx.moveTo(x,camera.y);ctx.lineTo(x,camera.y+H);ctx.stroke()}
+  for(let y=startY;y<endY;y+=grid){ctx.beginPath();ctx.moveTo(camera.x,y);ctx.lineTo(camera.x+W,y);ctx.stroke()}
+  ctx.strokeStyle="rgba(255,61,242,.28)";ctx.lineWidth=3;ctx.strokeRect(0,0,world.w,world.h);
+  ctx.restore();
+}
+
+function draw(){
+  ctx.clearRect(0,0,W,H);
+  ctx.save();
+  ctx.translate(-camera.x,-camera.y);
+  drawGrid();
+
+  for(const g of state.gems||[])glowCircle(g.x,g.y,g.r,"#52ff9a",.9);
+  for(const a of state.anvils||[]){
+    ctx.save();ctx.translate(a.x,a.y);ctx.shadowColor="#ffe45c";ctx.shadowBlur=24;ctx.fillStyle="#ffe45c";ctx.beginPath();ctx.roundRect(-15,-10,30,22,5);ctx.fill();ctx.fillStyle="#fff";ctx.fillRect(-6,12,12,12);ctx.restore();
+  }
+
+  for(const e of state.enemies||[]){
+    ctx.save();ctx.translate(e.x,e.y);ctx.shadowColor=e.color;ctx.shadowBlur=e.type&&e.type.startsWith("boss")?34:18;ctx.fillStyle=e.color;ctx.beginPath();
+    const sides=e.type==="fast"?3:e.type==="tank"?6:e.type&&e.type.startsWith("boss")?8:5;
+    for(let i=0;i<sides;i++){const a=-Math.PI/2+i*TAU/sides+(state.time||0)*.6;const rr=e.r+(i%2)*2;const x=Math.cos(a)*rr,y=Math.sin(a)*rr;if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y)}
+    ctx.closePath();ctx.fill();ctx.restore();
+    if(e.hp<e.maxHp){const w=e.r*2.1;ctx.fillStyle="rgba(0,0,0,.45)";ctx.fillRect(e.x-w/2,e.y-e.r-14,w,4);ctx.fillStyle=e.color;ctx.fillRect(e.x-w/2,e.y-e.r-14,w*clamp(e.hp/e.maxHp,0,1),4)}
+  }
+
+  for(const b of state.bullets||[])glowCircle(b.x,b.y,b.r,b.color,.95);
+  for(const b of state.enemyBullets||[])glowCircle(b.x,b.y,b.r,b.color,.85);
+
+  for(const p of state.players||[]){
+    if(!p.alive)continue;
+    if(p.aura>0){
+      ctx.save();ctx.globalAlpha=p.evolved&&p.evolved.bloodField?.13:.10;ctx.strokeStyle=p.evolved&&p.evolved.bloodField?"#ff355d":"#a340ff";ctx.fillStyle=p.evolved&&p.evolved.bloodField?"rgba(255,53,93,.08)":"rgba(163,64,255,.07)";ctx.lineWidth=3;const ar=(82+p.aura*18)*(1+(p.area||0));ctx.beginPath();ctx.arc(p.x,p.y,ar,0,TAU);ctx.fill();ctx.stroke();ctx.restore();
+    }
+    if(p.orbitals>0){
+      for(let i=0;i<p.orbitals;i++){const a=(state.time||0)*(2.7+p.orbitals*.13)+i*TAU/p.orbitals;glowCircle(p.x+Math.cos(a)*(48+p.orbitals*5),p.y+Math.sin(a)*(48+p.orbitals*5),12,p.evolved&&p.evolved.solarRing?"#ffe45c":"#ff8a3d",.95)}
+    }
+    ctx.save();ctx.translate(p.x,p.y);ctx.shadowColor=p.id===myId?"#36e8ff":"#ff3df2";ctx.shadowBlur=28;const grd=ctx.createLinearGradient(-18,-18,18,18);grd.addColorStop(0,p.id===myId?"#36e8ff":"#ff3df2");grd.addColorStop(1,p.id===myId?"#ff3df2":"#ffe45c");ctx.fillStyle=grd;ctx.beginPath();ctx.arc(0,0,p.r,0,TAU);ctx.fill();ctx.strokeStyle="rgba(255,255,255,.8)";ctx.lineWidth=2;ctx.beginPath();ctx.arc(0,0,p.r+5,0,TAU);ctx.stroke();ctx.fillStyle="#fff";ctx.font="800 12px system-ui";ctx.textAlign="center";ctx.fillText(p.name,0,-28);ctx.restore();
+  }
+
+  ctx.restore();
+  drawMinimap();
+  requestAnimationFrame(draw);
+}
+
+function drawMinimap(){
+  const mw=minimap.width,mh=minimap.height,sx=mw/world.w,sy=mh/world.h;
+  mapCtx.clearRect(0,0,mw,mh);
+  mapCtx.fillStyle="rgba(4,6,16,.95)";mapCtx.fillRect(0,0,mw,mh);
+  mapCtx.strokeStyle="rgba(255,255,255,.45)";mapCtx.lineWidth=1;mapCtx.strokeRect(camera.x*sx,camera.y*sy,W*sx,H*sy);
+  mapCtx.fillStyle="#52ff9a";for(const g of state.gems||[])mapCtx.fillRect(g.x*sx-1,g.y*sy-1,2,2);
+  mapCtx.fillStyle="#ffe45c";for(const a of state.anvils||[])mapCtx.fillRect(a.x*sx-3,a.y*sy-3,6,6);
+  for(const e of state.enemies||[]){mapCtx.fillStyle=e.type&&e.type.startsWith("boss")?"#ff355d":e.type==="elite"?"#52ff9a":"rgba(255,61,242,.85)";mapCtx.beginPath();mapCtx.arc(e.x*sx,e.y*sy,e.type&&e.type.startsWith("boss")?4:2,0,TAU);mapCtx.fill()}
+  for(const p of state.players||[]){if(!p.alive)continue;mapCtx.fillStyle=p.id===myId?"#36e8ff":"#fff";mapCtx.beginPath();mapCtx.arc(p.x*sx,p.y*sy,4,0,TAU);mapCtx.fill()}
+}
+
+draw();
+})();
+</script>
+</body>
+</html>

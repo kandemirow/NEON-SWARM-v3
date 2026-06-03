@@ -1,0 +1,17 @@
+{
+  "name": "neon-swarm-online",
+  "version": "1.0.0",
+  "description": "Online Vampire Survivors-style HTML game prototype with WebSocket multiplayer.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ws": "^8.18.0",
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
